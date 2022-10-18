@@ -105,7 +105,7 @@ class PathPiece extends SquareAABBCollidable {
         let inserted = false;
         if (x < this.mid_x() && y > this.y && this.y + this.height > y) //left
          {
-            if (this.left_free()) {
+            if (this.left_free() && piece.right_free()) {
                 inserted = true;
                 this.children.left_child = piece;
                 piece.x = this.x - this.width;
@@ -114,7 +114,7 @@ class PathPiece extends SquareAABBCollidable {
         }
         else if (x >= this.mid_x() && y > this.y && this.y + this.height > y) //right
          {
-            if (this.right_free()) {
+            if (this.right_free() && piece.left_free()) {
                 inserted = true;
                 this.children.right_child = piece;
                 piece.x = this.x + this.width;
@@ -123,7 +123,7 @@ class PathPiece extends SquareAABBCollidable {
         }
         else if (y < this.mid_y() && x > this.x && this.x + this.width > x) //top
          {
-            if (this.top_free()) {
+            if (this.top_free() && piece.bottom_free()) {
                 inserted = true;
                 this.children.top_child = piece;
                 piece.x = this.x;
@@ -132,7 +132,7 @@ class PathPiece extends SquareAABBCollidable {
         }
         else if (y >= this.mid_y() && x > this.x && this.x + this.width > x) //bottom
          {
-            if (this.bottom_free()) {
+            if (this.bottom_free() && piece.top_free()) {
                 inserted = true;
                 this.children.bottom_child = piece;
                 piece.x = this.x;
