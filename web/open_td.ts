@@ -1,6 +1,6 @@
 import {SingleTouchListener, TouchMoveEvent, MouseDownTracker, isTouchSupported, KeyboardHandler} from './io.js'
 import {RegularPolygon, getHeight, getWidth, RGB, Sprite, blendAlphaCopy} from './gui.js'
-import {random, srand, max_32_bit_signed, FixedSizeQueue, Queue, PriorityQueue} from './utils.js'
+import {random, srand, max_32_bit_signed, FixedSizeQueue, Queue, PriorityQueue, DynamicInt32Array} from './utils.js'
 import {non_elastic_no_angular_momentum_bounce_vector, get_normal_vector_aabb_rect_circle_collision, magnitude, dot_product_2d, scalar_product_2d, normalize2D, distance, GameObject, menu_font_size, SpatiallyMappableCircle, SpatialHashMap2D, SquareAABBCollidable, Circle, manhattan_distance } from './game_utils.js'
 
 class Projectile extends SquareAABBCollidable {
@@ -123,7 +123,23 @@ class PathPiece extends SquareAABBCollidable {
     }
     is_leaf():boolean
     {
-        return this.left_free() || this.right_free() || this.top_free() || this.bottom_free();
+        let is_leaf = false;
+        if(this.path)
+        {
+            if(this.left_free() && !this.path!.map.check_collision_fast(
+                new SquareAABBCollidable(this.x - this.width, this.y, this.width, this.height)))
+                is_leaf = true;
+            if(this.right_free() && !this.path!.map.check_collision_fast(
+                new SquareAABBCollidable(this.x + this.width, this.y, this.width, this.height)))
+                is_leaf = true;
+            if(this.top_free() && !this.path!.map.check_collision_fast(
+                new SquareAABBCollidable(this.x, this.y - this.height, this.width, this.height)))
+                is_leaf = true;
+            if(this.bottom_free() && !this.path!.map.check_collision_fast(
+                new SquareAABBCollidable(this.x, this.y + this.height, this.width, this.height)))
+                is_leaf = true;
+        }
+        return is_leaf;
     }
     left_free():boolean
     {
@@ -200,7 +216,7 @@ class PathPiece extends SquareAABBCollidable {
         const possible_sides = <any[]>[];
         for(const key in this.children)
         {
-            if(this.children[key] === null && this.parent && !this.parent.check_collision(this.child_bounding_box(key)))
+            if(this.children[key] === null && this.path && !this.path.map.check_collision_fast(this.child_bounding_box(key)))
             {
                 possible_sides.push(key);
             }
@@ -252,7 +268,7 @@ class PathPiece extends SquareAABBCollidable {
                     this.children[key] = new type(this.x, this.y + this.height, this.width, this.height, this.path, this);
                 }
             }
-            if(this.path!.map.check_collision_slow(this.children[key]))
+            if(this.path!.map.check_collision_fast(this.children[key]))
             {
                 if(this.children.left_child === this.children[key])
                 {
@@ -274,6 +290,9 @@ class PathPiece extends SquareAABBCollidable {
             else if(this.children[key].is_leaf() && this.path)
             {
                 this.path!.leaves.push(this.children[key]);
+                this.path.map.last_updated.push(this.path);
+                this.path.undo_stack.push(this.children[key]);
+                this.path!.map.set_piece_on_cell(this.children[key].x, this.children[key].y);
             }
             if(!this.is_leaf() && this.path)
             {
@@ -288,7 +307,7 @@ class PathPiece extends SquareAABBCollidable {
     try_insert_child(x:number, y:number, piece:PathPiece):number
     {
         let inserted = 0;
-        if(x < this.mid_x() && y > this.y && this.y + this.height > y)//left
+        if(x <= this.mid_x() && y >= this.y && this.y + this.height >= y)//left
         { 
             if(this.left_free() && piece.right_free())
             {
@@ -298,7 +317,7 @@ class PathPiece extends SquareAABBCollidable {
                 piece.y = this.y;
             }
         }
-        else if(x >= this.mid_x() && y > this.y && this.y + this.height > y)//right
+        else if(x >= this.mid_x() && y >= this.y && this.y + this.height >= y)//right
         {
             if(this.right_free() && piece.left_free())
             {
@@ -308,7 +327,7 @@ class PathPiece extends SquareAABBCollidable {
                 piece.y = this.y;
             }
         }
-        else if(y < this.mid_y() && x > this.x && this.x + this.width > x)//top
+        else if(y <= this.mid_y() && x >= this.x && this.x + this.width >= x)//top
         {
             if(this.top_free() && piece.bottom_free())
             {
@@ -318,7 +337,7 @@ class PathPiece extends SquareAABBCollidable {
                 piece.y = this.y - this.height;
             }
         }
-        else if(y >= this.mid_y() && x > this.x && this.x + this.width > x)//bottom
+        else if(y >= this.mid_y() && x >= this.x && this.x + this.width >= x)//bottom
         {
             if(this.bottom_free() && piece.top_free())
             {
@@ -328,44 +347,31 @@ class PathPiece extends SquareAABBCollidable {
                 piece.y = this.y + this.height;
             }
         }
-        if(inserted && this.path?.map.check_collision_slow(piece))
+        if(this.path)
+        if(inserted && this.path.map.check_collision_fast(piece))
         {
             inserted = 0;
-            if(this.children.left_child === piece)
-            {
-                this.children.left_child = null;
-            }
-            else if(this.children.right_child === piece)
-            {
-                this.children.right_child = null;
-            }
-            else if(this.children.top_child === piece)
-            {
-                this.children.top_child = null;
-            }
-            else if(this.children.bottom_child === piece)
-            {
-                this.children.bottom_child = null;
-            }
+            this.remove_child(piece);
         }
         else if(inserted)
         {
             piece.parent = this;
             piece.path = this.path;
-            this.path?.leaves.push(piece);
+            this.path.leaves.push(piece);
             if(!this.is_leaf())
             {
-                const index_tbd = this.path!.leaves.indexOf(this);
+                const index_tbd = this.path.leaves.indexOf(this);
                 if(index_tbd !== -1)
                 {
-                    this.path?.leaves.splice(index_tbd, 1);
+                    this.path.leaves.splice(index_tbd, 1);
                 }
             }
-            this.path?.undo_stack.push(piece);
+            this.path.undo_stack.push(piece);
+            this.path.map.set_piece_on_cell(piece.x, piece.y);
         }
         return inserted;
     }
-    remove_child(tbd:PathPiece):void
+    remove_child(tbd:PathPiece, clear_map:boolean = false):void
     {
         if(tbd === this.children.left_child)
         {
@@ -383,6 +389,8 @@ class PathPiece extends SquareAABBCollidable {
         {
             this.children.bottom_child = null;
         }
+        if(clear_map)
+            this.path!.map.clear_piece_on_cell(this.x, this.y);
     }
 };
 class HorizontalPathPiece extends PathPiece {
@@ -434,7 +442,7 @@ class LeftBottomPiece extends PathPiece {
     }
     top_free():boolean
     {
-        return false && !this.children.top_child;
+        return false && super.top_free();
     }
     bottom_free():boolean
     {
@@ -511,7 +519,7 @@ class TBottomPiece extends PathPiece {
     }
     top_free():boolean
     {
-        return false && !this.children.top_child;
+        return false && super.top_free();
     }
     bottom_free():boolean
     {
@@ -589,6 +597,8 @@ class Path {
         this.cell_width = width;
         this.cell_height = height;
         this.undo_stack = [];
+        x -= x % this.cell_width;
+        y -= y % this.cell_height;
         this.root = new PathPiece(x, y, this.cell_width, this.cell_height, this);
         this.root.children.left_child = new PathPiece(x + this.cell_width, y, this.cell_width, this.cell_height, this, this.root);
         this.leaves = [this.root.children.left_child];
@@ -602,29 +612,37 @@ class Path {
             this.leaves.splice(this.leaves.indexOf(tbd), 1);
             if(this.leaves.indexOf(parent) === -1)
                 this.leaves.push(parent);
-            parent.remove_child(tbd);
+            parent.remove_child(tbd, true);
+            this.map.clear_piece_on_cell(tbd.x, tbd.y);
             return tbd;
         }
         return null;
     }
-    check_collision_slow(collidable:SquareAABBCollidable):boolean
+    check_collision_slow(collidable:SquareAABBCollidable):PathPiece | null
     {
-        let result = false;
-        this.traverse((piece) => {if(collidable.check_collision(piece) && collidable !== piece) result = true });
+        let result:PathPiece | null = null;
+        this.traverse((piece) => {
+            if(collidable.check_collision(piece) && collidable !== piece) 
+                result = piece 
+        });
         return result;
     }
     pick_random_leaf(): PathPiece | null
     {
+        this.leaves = [];
+        this.traverse((piece) => {
+            if(piece.is_leaf())
+                this.leaves.push(piece);
+        });
         const index = Math.floor(random() * this.leaves.length);
         return index < this.leaves.length ? this.leaves[index] : null;
     }
     find_nearest_open_leaf(search_point:SquareAABBCollidable, nearest:PathPiece = this.root):PathPiece | null
     {
-
         let nearest_dist = distance(nearest, search_point);
         this.traverse((piece) => {
             const current_dist = distance(piece, search_point);
-            if(nearest_dist > current_dist && piece.position_open(search_point))
+            if(nearest_dist > current_dist && !this.map.check_collision_fast(search_point))
             {
                 nearest = piece;
                 nearest_dist = current_dist;
@@ -643,7 +661,7 @@ class Path {
                 nearest_dist = current_dist;
             }
         })
-        return nearest.is_leaf() ? nearest : null;
+        return nearest//nearest.is_leaf() ? nearest : null;
     }
     traverse(apply:(element:PathPiece) => void):void
     {
@@ -838,6 +856,7 @@ class Enemy extends SquareAABBCollidable {
 class Map {
     game:Game;
     paths:Path[];
+    path_cell_map:DynamicInt32Array;
     last_updated:Path[];
     enemies:Enemy[];
     towers:Tower[];
@@ -853,6 +872,7 @@ class Map {
         this.last_updated = [];
         this.cell_dim = min_dim;
         this.paths = [new Path(x, y, min_dim, min_dim, this)];
+        this.path_cell_map = new DynamicInt32Array(this.horizontal_cells() * this.vertical_cells())
         this.piece_types = [HorizontalPathPiece, VerticalPathPiece, LeftBottomPiece, RightBottomPiece, 
             LeftTopPiece, RightTopPiece, TBottomPiece, TTopPiece, TLeftPiece, TRightPiece];
         this.piece_type_instances = [];
@@ -862,7 +882,63 @@ class Map {
             this.piece_type_instances.push(new type(0, 0, 0, 0, null, null));
         }
     }
-    
+
+    get_path_piece_parent_world_space(x:number, y:number):number[]
+    {
+        x = Math.floor(x / this.cell_dim);
+        y = Math.floor(y / this.cell_dim);
+        const wx = this.get_path_piece_parent(x, y) % this.horizontal_cells() * this.cell_dim;
+        const wy = Math.floor(this.get_path_piece_parent(x, y) / this.horizontal_cells()) * this.cell_dim;
+        return [wx + this.cell_dim * 0.5, wy + this.cell_dim * 0.5];
+    }
+    get_path_piece_parent(x:number, y:number):number
+    {
+        return this.path_cell_map[x + y * this.horizontal_cells()] >> 1;
+    }
+    set_path_piece_parent(parent_index:number, x:number, y:number):void
+    {
+        const current = x + y * this.horizontal_cells();
+        this.path_cell_map[current] &= 1;
+        this.path_cell_map[current] |= parent_index << 1;
+    }
+    set_piece_on_cell(x:number, y:number):void
+    {
+        const gx = Math.floor(x / this.cell_dim);
+        const gy = Math.floor(y / this.cell_dim);
+        const gindex = gx + gy * this.horizontal_cells();
+        this.path_cell_map[gindex] |= this.piece_bit_mask();
+    }
+    clear_piece_on_cell(x:number, y:number):void
+    {
+        const gx = Math.floor(x / this.cell_dim);
+        const gy = Math.floor(y / this.cell_dim);
+        const gindex = gx + gy * this.horizontal_cells();
+        this.path_cell_map[gindex] &= ~this.piece_bit_mask();
+    }
+    is_piece_on_cell(x:number, y:number):boolean
+    {
+        const gx = Math.floor(x / this.cell_dim);
+        const gy = Math.floor(y / this.cell_dim);
+        const gindex = gx + gy * this.horizontal_cells();
+        return (this.path_cell_map[gindex] & this.piece_bit_mask()) === this.piece_bit_mask();
+    }
+    is_piece_here(x:number, y:number):boolean
+    {
+        const gindex = x + y * this.horizontal_cells();
+        return (this.path_cell_map[gindex] & this.piece_bit_mask()) === this.piece_bit_mask();
+    }
+    piece_bit_mask():number
+    {
+        return 1;
+    }
+    horizontal_cells():number
+    {
+        return Math.ceil(this.game.max_x / this.cell_dim);
+    }
+    vertical_cells():number
+    {
+        return Math.ceil(this.game.max_y / this.cell_dim);
+    }
     undo():void
     {
         if(this.last_updated.length > 0)
@@ -878,16 +954,16 @@ class Map {
     }
     try_add_piece(x:number, y:number):boolean
     {
-        //const piece = new this.piece_types[Math.floor(random() * this.piece_types.length)](x, y, this.cell_dim, this.cell_dim, null, null);
         let nearest_path = this.paths[0];
-        const pos = new SquareAABBCollidable(x, y, this.cell_dim, this.cell_dim);
-        this.translate_to_cell_pos(pos);
-        let nearest_leaf = nearest_path.find_nearest_leaf(pos);
-        for(let i = 0; i < this.paths.length; i++)
+        const pos = new SquareAABBCollidable(x - this.cell_dim / 4, y - this.cell_dim / 4, this.cell_dim/2, this.cell_dim/2);
+        let nearest_leaf = nearest_path.check_collision_slow(pos);
+        //nearest_leaf = nearest_leaf && nearest_leaf.check_collision(pos)?nearest_leaf:null;
+        console.log(nearest_leaf, x, y)
+        for(let i = 1; i < this.paths.length; i++)
         {
             const path = this.paths[i];
-            const leaf = nearest_path.find_nearest_open_leaf(pos);
-            if(leaf && leaf.position_open(pos) && leaf.distance(pos) < (nearest_leaf? nearest_leaf.distance(pos):max_32_bit_signed))
+            const leaf = nearest_path.check_collision_slow(pos);
+            if(leaf && leaf.check_collision(pos))
             {
                 nearest_path = path;
                 nearest_leaf = leaf;
@@ -896,27 +972,29 @@ class Map {
         if(nearest_leaf && nearest_path)
         {
             let piece:PathPiece|null = null;
-            if(x < nearest_leaf.mid_x() && y > nearest_leaf.y && nearest_leaf.y + nearest_leaf.height > y)//left
+            if(x < nearest_leaf.mid_x() && y >= nearest_leaf.y && nearest_leaf.y + nearest_leaf.height > y)//left
             {
                 const types = this.piece_types.filter((piece, index, arr) => this.piece_type_instances[index].right_initially_free);
-                piece = new types[Math.floor(random() * types.length)](nearest_leaf.x + this.cell_dim, nearest_leaf.y, nearest_leaf.width, nearest_leaf.height, nearest_path, nearest_leaf);
-            }
-            else if(x >= nearest_leaf.mid_x() && y > nearest_leaf.y && nearest_leaf.y + nearest_leaf.height > y)//right
-            {
-                const types = this.piece_types.filter((piece, index, arr) => this.piece_type_instances[index].left_initially_free);
                 piece = new types[Math.floor(random() * types.length)](nearest_leaf.x - this.cell_dim, nearest_leaf.y, nearest_leaf.width, nearest_leaf.height, nearest_path, nearest_leaf);
             }
-            else if(y < nearest_leaf.mid_y() && x > nearest_leaf.x && nearest_leaf.x + nearest_leaf.width > x)//top
+            else if(x >= nearest_leaf.mid_x() && y >= nearest_leaf.y && nearest_leaf.y + nearest_leaf.height > y)//right
+            {
+                const types = this.piece_types.filter((piece, index, arr) => this.piece_type_instances[index].left_initially_free);
+                piece = new types[Math.floor(random() * types.length)](nearest_leaf.x + this.cell_dim, nearest_leaf.y, nearest_leaf.width, nearest_leaf.height, nearest_path, nearest_leaf);
+            }
+            else if(y < nearest_leaf.mid_y() && x >= nearest_leaf.x && nearest_leaf.x + nearest_leaf.width > x)//top
             {
                 const types = this.piece_types.filter((piece, index, arr) => this.piece_type_instances[index].bottom_initially_free);
                 piece = new types[Math.floor(random() * types.length)](nearest_leaf.x, nearest_leaf.y - this.cell_dim, nearest_leaf.width, nearest_leaf.height, nearest_path, nearest_leaf);
             }
-            else if(y >= nearest_leaf.mid_y() && x > nearest_leaf.x && nearest_leaf.x + nearest_leaf.width > x)//bottom
+            else if(y >= nearest_leaf.mid_y() && x >= nearest_leaf.x && nearest_leaf.x + nearest_leaf.width > x)//bottom
             {
                 const types = this.piece_types.filter((piece, index, arr) => this.piece_type_instances[index].top_initially_free);
-                piece = new types[Math.floor(random() * types.length)](nearest_leaf.x, nearest_leaf.y - this.cell_dim, nearest_leaf.width, nearest_leaf.height, nearest_path, nearest_leaf);
+                piece = new types[Math.floor(random() * types.length)](nearest_leaf.x, nearest_leaf.y + this.cell_dim, nearest_leaf.width, nearest_leaf.height, nearest_path, nearest_leaf);
             }
             if(piece)
+                console.log("passes check collision fast:",!this.check_collision_fast(piece!), console.log(piece))
+            if(piece && !this.check_collision_fast(piece))
             {
                 this.last_updated.push(nearest_path);
                 nearest_leaf.try_insert_child(x, y, piece);
@@ -934,19 +1012,15 @@ class Map {
         const type_index = Math.floor(random() * this.game.enemy_types.length);
         const path = this.pick_random_path();
         const leaf = path.pick_random_leaf()!;
-        const enemy = new this.game.enemy_types[type_index]!(leaf.mid_x(), leaf.mid_y() - leaf.width / 2, leaf.width / 2, leaf.width / 2, leaf);
-        this.enemies.push(enemy);
-    }
-    check_collision_slow(collidable:SquareAABBCollidable):boolean
-    {
-        for(let i = 0; i < this.paths.length; i++)
+        if(leaf)
         {
-            if(this.paths[i].check_collision_slow(collidable))
-            {
-                return true;
-            }
+            const enemy = new this.game.enemy_types[type_index]!(leaf.mid_x(), leaf.mid_y() - leaf.width / 2, leaf.width / 2, leaf.width / 2, leaf);
+            this.enemies.push(enemy);
         }
-        return false;
+    }
+    check_collision_fast(collidable:SquareAABBCollidable):boolean
+    {
+        return this.is_piece_on_cell(collidable.x, collidable.y);
     }
     update_state(delta_time: number):void {
         this.enemies.forEach(enemy => enemy.update_state(delta_time));

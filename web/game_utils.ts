@@ -11,7 +11,6 @@ export function distance(a:SquareAABBCollidable, b:SquareAABBCollidable):number
 }
 export function get_normal_vector_aabb_rect_circle_collision(ball:SpatiallyMappableCircle, brick:SquareAABBCollidable):number[]
 {
-
     let delta:number[] = [0, 0];
     const collision_code = brick.collides_with_circle(ball);
     if(collision_code === 1)
@@ -38,8 +37,6 @@ export function get_normal_vector_aabb_rect_circle_collision(ball:SpatiallyMappa
             if(ball.mid_y() > brick.mid_y())//top right
             {
                 delta = [brick.x + brick.width - ball.mid_x(), -brick.y + ball.mid_y()];
-                //delta[0] *= -1;
-                //delta[1] *= -1;
                 point_collision[0] = brick.x + brick.width;
                 point_collision[1] = brick.y;
 
