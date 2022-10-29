@@ -170,6 +170,9 @@ export class SquareAABBCollidable {
 }
 ;
 export class SpatiallyMappableCircle extends SquareAABBCollidable {
+    constructor(x, y, radius) {
+        super(x - radius, y - radius, radius * 2, radius * 2);
+    }
     snap_back_out_of_squareAABBColidable(brick, collision_code, delta_time) {
         //no collision
         //1 corner collision
@@ -212,15 +215,18 @@ export class Cell {
     push_collidable_not_with_self(object) {
         this.collidable_not_with_self.push(object);
     }
+    push_collidable_not_with_self2(object) {
+        this.collidable_not_with_self2.push(object);
+    }
 }
 ;
 export class SpatialHashMap2D {
     constructor(collidables, collidable_not_with_self, collidable_not_with_self2, screen_width, screen_height, cells_vertical, cells_horizontal) {
         this.data = [];
-        screen_width = screen_width;
-        screen_height = screen_height;
-        cells_horizontal = cells_horizontal;
-        cells_vertical = cells_vertical;
+        this.screen_width = screen_width;
+        this.screen_height = screen_height;
+        this.cells_horizontal = cells_horizontal;
+        this.cells_vertical = cells_vertical;
         for (let i = 0; i < cells_vertical * cells_horizontal; i++) {
             this.data.push(new Cell());
         }
@@ -274,26 +280,20 @@ export class SpatialHashMap2D {
         }
     }
     push_collidable(collidable) {
+        const dx = Math.ceil(collidable.max_width() / this.screen_width * this.cells_horizontal);
+        const dy = Math.ceil(collidable.max_height() / this.screen_height * this.cells_vertical);
         const grid_x = Math.floor((collidable.x) / this.screen_width * this.cells_horizontal);
         const grid_y = Math.floor((collidable.y) / this.screen_height * this.cells_vertical);
-        this.data[grid_x + grid_y * this.cells_horizontal].push_collidable(collidable);
+        for (let y = 0; y <= dy; y++) {
+            for (let x = 0; x <= dx; x++) {
+                const cell = this.data[grid_x + x + (grid_y + y) * this.cells_horizontal];
+                if (cell)
+                    cell.push_collidable(collidable);
+            }
+        }
     }
-    push_collidable_not_with_self(collidable) {
-        const grid_x = Math.floor((collidable.x) / this.screen_width * this.cells_horizontal);
-        const grid_y = Math.floor((collidable.y) / this.screen_height * this.cells_vertical);
-        this.data[grid_x + grid_y * this.cells_horizontal].push_collidable_not_with_self(collidable);
-    }
-    remove_collidable(collidable) {
-        const grid_x = Math.floor((collidable.x) / this.screen_width * this.cells_horizontal);
-        const grid_y = Math.floor((collidable.y) / this.screen_height * this.cells_vertical);
-        const cell = this.data[grid_x + grid_y * this.cells_horizontal].collidable_objects;
-        cell.splice(cell.indexOf(collidable), 1);
-    }
-    remove_collidable_not_with_self(collidable) {
-        const grid_x = Math.floor((collidable.x) / this.screen_width * this.cells_horizontal);
-        const grid_y = Math.floor((collidable.y) / this.screen_height * this.cells_vertical);
-        const cell = this.data[grid_x + grid_y * this.cells_horizontal].collidable_not_with_self;
-        cell.splice(cell.indexOf(collidable), 1);
+    get_cell(x, y) {
+        return this.data[x + y * this.cells_horizontal];
     }
     handle_by_cell(callback, callback_rhs_collidable_not_with_self, callback_rhs_collidable_not_with_self2, callback_lhs_collidable_not_with_self1_rhs_collidable_not_with_self2) {
         for (let i = 0; i < this.data.length; i++) {
@@ -310,13 +310,13 @@ export class SpatialHashMap2D {
             for (let j = 0; j < collidables_not_with_self.length; j++) {
                 const collidable2 = collidables_not_with_self[j];
                 if (collidable2.check_collision(collidable)) {
-                    callback_rhs_collidable_not_with_self(collidable, collidable2);
+                    callback_rhs_collidable_not_with_self(collidable2, collidable);
                 }
             }
             for (let j = 0; j < collidables_not_with_self2.length; j++) {
                 const collidable2 = collidables_not_with_self2[j];
                 if (collidable2.check_collision(collidable)) {
-                    callback_rhs_collidable_not_with_self2(collidable, collidable2);
+                    callback_rhs_collidable_not_with_self2(collidable2, collidable);
                 }
             }
             for (let j = 0; j < collidables.length; j++) {

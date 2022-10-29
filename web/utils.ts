@@ -345,6 +345,21 @@ export class DynamicInt32Array {
         this.data = new Int32Array(size);
         this.len = 0;
     }
+    fill(value:number, start:number = 0, end:number = this.len):DynamicInt32Array
+    {
+        for(let i = start; i < end; i++)
+        {
+            this.data[i] = value;
+        }
+        return this;
+    }
+    map_in_place(apply:(arr:DynamicInt32Array, index:number) => number):void
+    {
+        for(let i = 0; i < this.length(); i++)
+        {
+            this.data[i] = apply(this, i);
+        }
+    }
     length(): number
     {
         return this.len;

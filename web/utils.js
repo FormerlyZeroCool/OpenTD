@@ -266,6 +266,17 @@ export class DynamicInt32Array {
         this.data = new Int32Array(size);
         this.len = 0;
     }
+    fill(value, start = 0, end = this.len) {
+        for (let i = start; i < end; i++) {
+            this.data[i] = value;
+        }
+        return this;
+    }
+    map_in_place(apply) {
+        for (let i = 0; i < this.length(); i++) {
+            this.data[i] = apply(this, i);
+        }
+    }
     length() {
         return this.len;
     }

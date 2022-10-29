@@ -1,14 +1,32 @@
 import { SingleTouchListener, isTouchSupported, KeyboardHandler } from './io.js';
 import { RegularPolygon, getHeight, getWidth, RGB } from './gui.js';
-import { random, srand, max_32_bit_signed, FixedSizeQueue, DynamicInt32Array } from './utils.js';
-import { distance, menu_font_size, SquareAABBCollidable } from './game_utils.js';
+import { random, srand, max_32_bit_signed, FixedSizeQueue, Queue, DynamicInt32Array } from './utils.js';
+import { distance, menu_font_size, SpatiallyMappableCircle, SpatialHashMap2D, SquareAABBCollidable } from './game_utils.js';
 class Projectile extends SquareAABBCollidable {
-    constructor(x, y, width, height) {
+    constructor(target, origin, x, y, width, height) {
         super(x, y, width, height);
+        this.target = target;
+        this.origin = origin;
+        this.target = null;
         this.base_damage = 0;
         this.bleed_damage = 0;
         this.poison_damage = 0;
         this.burn_damage = 0;
+    }
+    is_at_target() {
+        if (this.target) {
+            const dist = distance(this, this.target);
+            if (dist < Math.min(this.target.width, this.target.height) / 4) {
+                return true;
+            }
+        }
+        return false;
+    }
+    update_state(delta_time) {
+        if (this.target) {
+            this.set_direction_vector_to_face(this.target);
+        }
+        super.update_state(delta_time);
     }
     damage_enemy(enemy) {
     }
@@ -16,7 +34,7 @@ class Projectile extends SquareAABBCollidable {
 ;
 class Arrow extends Projectile {
     constructor(target, origin, x, y, width, height) {
-        super(x, y, width, height);
+        super(target, origin, x, y, width, height);
         this.base_damage = 100;
         this.bleed_damage = 150;
         this.poison_damage = 0;
@@ -27,15 +45,116 @@ class Arrow extends Projectile {
         enemy.add_bleed(this.bleed_damage);
         enemy.lose_hp(this.base_damage);
     }
-}
-;
-class Tower extends SquareAABBCollidable {
-    constructor(x, y, dim) {
-        super(x, y, dim, dim);
+    update_state(delta_time) {
+        this.direction = [140, 0];
+        super.update_state(delta_time);
+    }
+    draw(canvas, ctx, x, y, width, height) {
+        ctx.fillStyle = "#00FF00";
+        ctx.fillRect(this.x, this.y, this.width, this.height);
     }
 }
 ;
+class Range extends SpatiallyMappableCircle {
+    constructor(x, y, radius, range_for) {
+        super(x, y, radius);
+        this.range_for = range_for;
+    }
+}
+;
+class Tower extends SquareAABBCollidable {
+    constructor(game, x, y, dim, range, projectile_type) {
+        super(x, y, dim, dim);
+        this.projectile_type = projectile_type;
+        this.closest = null;
+        this.highest_hp = null;
+        this.highest_shield_magic = null;
+        this.highest_shield_fire = null;
+        this.highest_shield_poison = null;
+        this.highest_shield_physical = null;
+        this.targeting_strategy = Tower.target_closest;
+        this.game = game;
+        this.fire_rate = 1;
+        this.range_map_space = range;
+        this.range = new Range(this.x, this.y, this.width * range, this);
+        this.last_fired = Date.now();
+    }
+    clear_targets() {
+        this.closest = null;
+        this.highest_hp = null;
+        this.highest_shield_magic = null;
+        this.highest_shield_fire = null;
+        this.highest_shield_poison = null;
+        this.highest_shield_physical = null;
+    }
+    fire_projectile(projectile) {
+        projectile.x = this.mid_x();
+        projectile.y = this.mid_y();
+        switch (this.targeting_strategy) {
+            case (Tower.target_closest):
+                if (this.closest) {
+                    projectile.target = this.closest;
+                    this.game.map.add_projectile(projectile);
+                    console.log("projectile launched at closest!", this.closest);
+                }
+                break;
+            case (Tower.target_highest_hp):
+                if (this.highest_hp) {
+                    projectile.target = this.highest_hp;
+                    this.game.map.add_projectile(projectile);
+                    console.log("projectile launched!");
+                }
+                break;
+            case (Tower.target_highest_shield_fire):
+                if (this.highest_shield_fire) {
+                    projectile.target = this.highest_shield_fire;
+                    this.game.map.add_projectile(projectile);
+                    console.log("projectile launched!");
+                }
+                break;
+            case (Tower.target_highest_shield_magic):
+                if (this.highest_shield_magic) {
+                    projectile.target = this.highest_shield_magic;
+                    this.game.map.add_projectile(projectile);
+                    console.log("projectile launched!");
+                }
+                break;
+            case (Tower.target_highest_shield_physical):
+                if (this.highest_shield_physical) {
+                    projectile.target = this.highest_shield_physical;
+                    this.game.map.add_projectile(projectile);
+                    console.log("projectile launched!");
+                }
+                break;
+            case (Tower.target_highest_shield_poison):
+                if (this.highest_shield_poison) {
+                    projectile.target = this.highest_shield_poison;
+                    this.game.map.add_projectile(projectile);
+                    console.log("projectile launched!");
+                }
+                break;
+        }
+    }
+    update_state(delta_time) {
+        const current_time = Date.now();
+        if (current_time - this.last_fired > this.fire_rate * 1000) {
+            this.fire_projectile(new this.projectile_type(null, this, this.x, this.y, this.width, this.height));
+            this.last_fired = current_time;
+        }
+    }
+}
+Tower.target_closest = 0;
+Tower.target_highest_hp = 1;
+Tower.target_highest_shield_magic = 2;
+Tower.target_highest_shield_fire = 3;
+Tower.target_highest_shield_poison = 4;
+Tower.target_highest_shield_physical = 5;
+;
 class Ballista extends Tower {
+    draw(canvas, ctx, x, y, width, height) {
+        ctx.fillStyle = "#FF0000";
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+    }
 }
 class PieceChildren {
     constructor() {
@@ -89,16 +208,28 @@ class PathPiece extends SquareAABBCollidable {
     is_leaf() {
         let is_leaf = false;
         if (this.path) {
-            if (this.left_free() && !this.path.map.check_collision_fast(new SquareAABBCollidable(this.x - this.width, this.y, this.width, this.height)))
+            if (this.left_empty())
                 is_leaf = true;
-            if (this.right_free() && !this.path.map.check_collision_fast(new SquareAABBCollidable(this.x + this.width, this.y, this.width, this.height)))
+            else if (this.right_empty())
                 is_leaf = true;
-            if (this.top_free() && !this.path.map.check_collision_fast(new SquareAABBCollidable(this.x, this.y - this.height, this.width, this.height)))
+            else if (this.top_empty())
                 is_leaf = true;
-            if (this.bottom_free() && !this.path.map.check_collision_fast(new SquareAABBCollidable(this.x, this.y + this.height, this.width, this.height)))
+            else if (this.bottom_empty())
                 is_leaf = true;
         }
         return is_leaf;
+    }
+    left_empty() {
+        return this.left_free() && !this.path.map.check_collision_fast(new SquareAABBCollidable(this.x - this.width, this.y, this.width, this.height));
+    }
+    right_empty() {
+        return this.right_free() && !this.path.map.check_collision_fast(new SquareAABBCollidable(this.x + this.width, this.y, this.width, this.height));
+    }
+    top_empty() {
+        return this.top_free() && !this.path.map.check_collision_fast(new SquareAABBCollidable(this.x, this.y - this.height, this.width, this.height));
+    }
+    bottom_empty() {
+        return this.bottom_free() && !this.path.map.check_collision_fast(new SquareAABBCollidable(this.x, this.y + this.height, this.width, this.height));
     }
     left_free() {
         return !this.children.left_child;
@@ -448,6 +579,12 @@ class TRightPiece extends PathPiece {
     }
 }
 ;
+class Target extends SquareAABBCollidable {
+    constructor(x, y, dim, value) {
+        super(x, y, dim, dim);
+        this.value = value;
+    }
+}
 class Path {
     constructor(x, y, width, height, map) {
         this.map = map;
@@ -525,6 +662,19 @@ class Path {
             }
         }
     }
+    breadth_first_traverse(apply) {
+        const queue = new Queue();
+        queue.push(this.root);
+        while (queue.length > 0) {
+            const current = queue.pop();
+            apply(current);
+            for (const el in current.children) {
+                const piece = current.children[el];
+                if (piece !== null)
+                    queue.push(piece);
+            }
+        }
+    }
     draw(canvas, ctx, x, y, width, height) {
         this.traverse((current) => current.draw(canvas, ctx, x, y, width, height));
         ctx.strokeRect(this.root.x, this.root.y, this.root.width, this.root.height);
@@ -546,7 +696,7 @@ class Enemy extends SquareAABBCollidable {
         this.shield_fire = 0;
         this.shield_poison = 0;
         this.shield_physical = 0;
-        this.hp = 0;
+        this.hp = 1;
         this.buildup_bleed = 0;
         this.buildup_burn = 0;
         this.buildup_poison = 0;
@@ -658,12 +808,13 @@ class Enemy extends SquareAABBCollidable {
 ;
 class Map {
     constructor(x, y, game) {
-        const min_dim = 32;
         this.game = game;
+        this.projectiles = [];
         this.enemies = [];
+        this.towers = [];
         this.last_updated = [];
-        this.cell_dim = min_dim;
-        this.paths = [new Path(x, y, min_dim, min_dim, this)];
+        this.cell_dim = game.cell_dim;
+        this.paths = [new Path(x, y, game.cell_dim, game.cell_dim, this)];
         this.path_cell_map = new DynamicInt32Array(this.horizontal_cells() * this.vertical_cells());
         this.piece_types = [HorizontalPathPiece, VerticalPathPiece, LeftBottomPiece, RightBottomPiece,
             LeftTopPiece, RightTopPiece, TBottomPiece, TTopPiece, TLeftPiece, TRightPiece];
@@ -672,6 +823,9 @@ class Map {
             const type = this.piece_types[i];
             this.piece_type_instances.push(new type(0, 0, 0, 0, null, null));
         }
+    }
+    add_projectile(projectile) {
+        this.projectiles.push(projectile);
     }
     get_path_piece_parent_world_space(x, y) {
         x = Math.floor(x / this.cell_dim);
@@ -714,10 +868,10 @@ class Map {
         return 1;
     }
     horizontal_cells() {
-        return Math.ceil(this.game.max_x / this.cell_dim);
+        return this.game.spatial_map_dim;
     }
     vertical_cells() {
-        return Math.ceil(this.game.max_y / this.cell_dim);
+        return this.game.spatial_map_dim;
     }
     undo() {
         if (this.last_updated.length > 0) {
@@ -788,14 +942,136 @@ class Map {
         }
     }
     check_collision_fast(collidable) {
-        return this.is_piece_on_cell(collidable.x, collidable.y);
+        return this.is_piece_on_cell(collidable.x, collidable.y) || this.towers_present(collidable.x, collidable.y) > 0;
+    }
+    towers_present(x, y) {
+        const map_x = Math.floor(x / this.cell_dim);
+        const map_y = Math.floor(y / this.cell_dim);
+        return (this.path_cell_map[map_x + map_y * this.horizontal_cells()] & (1 << 5) - 1) >> 1;
+    }
+    inc_towers_present(x, y) {
+        const map_x = Math.floor(x / this.cell_dim);
+        const map_y = Math.floor(y / this.cell_dim);
+        const towers_present = this.towers_present(x, y);
+        this.path_cell_map[map_x + map_y * this.horizontal_cells()] &= ~(((1 << 4) - 1) << 1);
+        this.path_cell_map[map_x + map_y * this.horizontal_cells()] |= (towers_present + 1) << 1;
+    }
+    try_place_tower(tower) {
+        if (!this.is_piece_here(tower.x, tower.y) && this.towers_present(tower.x, tower.y) < 4) {
+            this.towers.push(tower);
+            this.inc_towers_present(tower.x, tower.y);
+            return true;
+        }
+        return false;
     }
     update_state(delta_time) {
+        this.projectiles.forEach(projectile => projectile.update_state(delta_time));
+        const to_be_detonated = this.projectiles.filter(projectile => projectile.is_at_target());
+        this.projectiles = this.projectiles.filter(projectile => !projectile.is_at_target());
+        this.spatial_map = new SpatialHashMap2D([], to_be_detonated, this.enemies, this.game.max_x, this.game.max_y, this.game.spatial_map_dim, this.game.spatial_map_dim);
+        this.spatial_map.handle_by_cell(() => { }, () => { }, () => { }, (projectile, enemy) => {
+            //TODO use spatial map to detonate the to be detonated projectiles 
+            //here
+            enemy.take_damage(projectile);
+        });
+        //we don't want to actually perform collision on towers so we leave it empty for handle
+        //by cell, but we do want their ranges spatially mapped so we can check when one is
+        //in range of a place
+        this.towers.forEach(tower => { this.spatial_map.push_collidable(tower.range); tower.clear_targets(); });
+        this.enemies = this.enemies.filter(enemy => enemy.hp > 0);
+        const queue = new Queue();
+        const checked = new DynamicInt32Array(this.horizontal_cells() * this.vertical_cells());
+        checked.fill(0);
+        this.paths.forEach(path => queue.push(path.root));
+        while (queue.length > 0) {
+            const piece = queue.pop();
+            //if this is the first piece in a tower's range with enemies on it
+            //this is nearest
+            //then we need to find the piece with the max enemies attributes like shield and health
+            const map_x = Math.floor(piece.x / this.cell_dim + 0.1);
+            const map_y = Math.floor(piece.y / this.cell_dim + 0.1);
+            const objects_cell = this.spatial_map.get_cell(map_x, map_y);
+            const tower_ranges = objects_cell.collidable_objects;
+            const enemies = objects_cell.collidable_not_with_self2;
+            let highest_hp = 0;
+            let highest_shield_fire = 0;
+            let highest_shield_magic = 0;
+            let highest_shield_poison = 0;
+            let highest_shield_physical = 0;
+            //calc max properties for this cell of enemies present
+            enemies.forEach(enemy => {
+                if (enemy.hp > highest_hp)
+                    highest_hp = enemy.hp;
+                if (enemy.shield_fire > highest_shield_fire)
+                    highest_shield_fire = enemy.shield_fire;
+                if (enemy.shield_magic > highest_shield_magic)
+                    highest_shield_magic = enemy.shield_magic;
+                if (enemy.shield_physical > highest_shield_physical)
+                    highest_shield_physical = enemy.shield_physical;
+                if (enemy.shield_poison > highest_shield_poison)
+                    highest_shield_poison = enemy.shield_poison;
+            });
+            if (enemies.length > 0)
+                tower_ranges.forEach(tower_range => {
+                    const tower = tower_range.range_for;
+                    if (tower.closest === null) {
+                        tower.closest = new Target(piece.x, piece.y, piece.width, 0);
+                    }
+                    if (!tower.highest_hp || tower.highest_hp.value < highest_hp) {
+                        if (!tower.highest_hp)
+                            tower.highest_hp = new Target(piece.x, piece.y, piece.width, 0);
+                        tower.highest_hp.value = highest_hp;
+                    }
+                    if (!tower.highest_shield_fire || tower.highest_shield_fire.value < highest_shield_fire) {
+                        if (!tower.highest_shield_fire)
+                            tower.highest_shield_fire = new Target(piece.x, piece.y, piece.width, 0);
+                        tower.highest_shield_fire.value = highest_shield_fire;
+                    }
+                    if (!tower.highest_shield_magic || tower.highest_shield_magic.value < highest_shield_magic) {
+                        if (!tower.highest_shield_magic)
+                            tower.highest_shield_magic = new Target(piece.x, piece.y, piece.width, 0);
+                        tower.highest_shield_magic.value = highest_shield_magic;
+                    }
+                    if (!tower.highest_shield_poison || tower.highest_shield_poison.value < highest_shield_poison) {
+                        if (!tower.highest_shield_poison)
+                            tower.highest_shield_poison = new Target(piece.x, piece.y, piece.width, 0);
+                        tower.highest_shield_poison.value = highest_shield_poison;
+                    }
+                    if (!tower.highest_shield_physical || tower.highest_shield_physical.value < highest_shield_physical) {
+                        if (!tower.highest_shield_physical)
+                            tower.highest_shield_physical = new Target(piece.x, piece.y, piece.width, 0);
+                        tower.highest_shield_physical.value = highest_shield_physical;
+                    }
+                });
+            //add 0.1 to correct for floating point error since it should divide to a whole number
+            //since piece.x and piece.y are multiples of this.cell_dim
+            //if there were no error even adding 0.9 shouldn't change results
+            //but because there is i am concerned it may end up at 0.999... or something
+            //like that, and adding the 0.1 should correct this 
+            if (!checked[map_x + map_y * this.horizontal_cells()]) {
+                checked[map_x + map_y * this.horizontal_cells()] |= 1;
+                if (piece.children.left_child && !piece.left_free()) {
+                    queue.push(piece.children.left_child);
+                }
+                if (piece.children.right_child && !piece.right_free()) {
+                    queue.push(piece.children.right_child);
+                }
+                if (piece.children.top_child && !piece.top_free()) {
+                    queue.push(piece.children.top_child);
+                }
+                if (piece.children.bottom_child && !piece.bottom_free()) {
+                    queue.push(piece.children.bottom_child);
+                }
+            }
+        }
         this.enemies.forEach(enemy => enemy.update_state(delta_time));
+        this.towers.forEach(tower => { tower.update_state(delta_time); });
     }
     draw(canvas, ctx, x, y, width, height) {
         this.paths.forEach(path => path.draw(canvas, ctx, x, y, width, height));
         this.enemies.forEach(enemy => enemy.draw(canvas, ctx, x, y, width, height));
+        this.towers.forEach(tower => tower.draw(canvas, ctx, x, y, width, height));
+        this.projectiles.forEach(projectile => projectile.draw(canvas, ctx, x, y, width, height));
     }
 }
 ;
@@ -806,6 +1082,8 @@ class Game extends SquareAABBCollidable {
         this.ctx = this.canvas.getContext("2d");
         this.max_x = 4000;
         this.max_y = 4000;
+        this.spatial_map_dim = 50;
+        this.cell_dim = this.max_x / this.spatial_map_dim;
         this.canvas.width = this.max_x;
         this.canvas.height = this.max_y;
         this.x_translation = Math.floor(this.max_x / 2);
@@ -841,7 +1119,7 @@ class Game extends SquareAABBCollidable {
         const inv_scale = 1 / this.scale;
         x = this.trasform_x_to_world_space(x);
         y = this.trasform_y_to_world_space(y);
-        return this.map.try_add_piece(x, y);
+        return this.map.try_place_tower(new Ballista(this, x, y, this.cell_dim, 5, Arrow));
     }
     resize(width, height) {
         this.width = width;
@@ -894,7 +1172,7 @@ async function main() {
     });
     touchListener.registerCallBack("touchend", (event) => !(keyboardHandler.keysHeld["ControlLeft"] || keyboardHandler.keysHeld["ControlRight"] ||
         keyboardHandler.keysHeld["MetaLeft"] || keyboardHandler.keysHeld["MetaRight"]), (event) => {
-        game.try_place_ballista(event.touchPos[0], event.touchPos[1]);
+        console.log(game.try_place_ballista(event.touchPos[0], event.touchPos[1]));
     });
     touchListener.registerCallBack("touchmove", (event) => true, (event) => {
         const inv_scale = 1 / game.scale;
