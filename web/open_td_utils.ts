@@ -528,25 +528,6 @@ export class PathPiece extends SquareAABBCollidable {
             this.path!.map.clear_piece_on_cell(this.x, this.y);
     }
 };
-export class HorizontalPathPiece extends PathPiece {
-
-    left_free():boolean
-    {
-        return super.left_free();
-    }
-    right_free():boolean
-    {
-        return super.right_free();
-    }
-    top_free():boolean
-    {
-        return false;
-    }
-    bottom_free():boolean
-    {
-        return false;
-    }
-};
 export class VerticalPathPiece extends PathPiece {
     left_free():boolean
     {

@@ -2,10 +2,12 @@ import { SingleTouchListener, isTouchSupported, KeyboardHandler } from './io.js'
 import { getHeight, getWidth } from './gui.js';
 import { srand, max_32_bit_signed, FixedSizeQueue } from './utils.js';
 import { SquareAABBCollidable, menu_font_size } from './game_utils.js';
-import { Projectile, Map, Enemy, Tower, HorizontalPathPiece, VerticalPathPiece, LeftBottomPiece, RightBottomPiece, LeftTopPiece, RightTopPiece, TBottomPiece, TTopPiece, TLeftPiece, TRightPiece } from './open_td_utils.js';
+import { Projectile, Map, Enemy, Tower, PathPiece, VerticalPathPiece, LeftBottomPiece, RightBottomPiece, LeftTopPiece, RightTopPiece, TBottomPiece, TTopPiece, TLeftPiece, TRightPiece } from './open_td_utils.js';
+//example of how to create a new enemy class, override draw method to draw your own graphics
 class BasicEnemy extends Enemy {
 }
 ;
+//example of how to create a new Projectile class, override draw method to draw your own graphics
 class Arrow extends Projectile {
     constructor(target, origin, x, y, width, height) {
         super(target, origin, x, y, width, height);
@@ -29,12 +31,31 @@ class Arrow extends Projectile {
     }
 }
 ;
+//example of how to create a new tower class, override draw method to draw your own graphics
 class Ballista extends Tower {
     draw(canvas, ctx, x, y, width, height) {
         ctx.fillStyle = "#FF0000";
         ctx.fillRect(this.x, this.y, this.width, this.height);
     }
 }
+//example of how to create a new path piece class, override draw method to draw your own graphics
+//a path piece is a single piece of a path each one can render how it chooses and choose what sides 
+//are open to start with
+class HorizontalPathPiece extends PathPiece {
+    left_free() {
+        return super.left_free();
+    }
+    right_free() {
+        return super.right_free();
+    }
+    top_free() {
+        return false;
+    }
+    bottom_free() {
+        return false;
+    }
+}
+;
 export class Game extends SquareAABBCollidable {
     constructor(starting_lives, x, y, width, height) {
         super(x, y, width, height);

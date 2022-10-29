@@ -399,21 +399,6 @@ export class PathPiece extends SquareAABBCollidable {
     }
 }
 ;
-export class HorizontalPathPiece extends PathPiece {
-    left_free() {
-        return super.left_free();
-    }
-    right_free() {
-        return super.right_free();
-    }
-    top_free() {
-        return false;
-    }
-    bottom_free() {
-        return false;
-    }
-}
-;
 export class VerticalPathPiece extends PathPiece {
     left_free() {
         return false && super.left_free();
