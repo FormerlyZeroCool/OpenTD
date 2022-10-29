@@ -5,7 +5,7 @@ import {non_elastic_no_angular_momentum_bounce_vector, get_normal_vector_aabb_re
 import {Game} from './open_td.js'
 export class Projectile extends SquareAABBCollidable {
     
-    target:SquareAABBCollidable | null;
+    target:Target | null;
     origin:SquareAABBCollidable;
     bleed_damage:number;
     poison_damage:number;
@@ -13,7 +13,7 @@ export class Projectile extends SquareAABBCollidable {
     base_damage:number;
 
 
-    constructor(target:SquareAABBCollidable | null, origin:SquareAABBCollidable, x:number, y:number, width:number, height:number)
+    constructor(target:Target | null, origin:SquareAABBCollidable, x:number, y:number, width:number, height:number)
     {
         super(x, y, width, height);
         this.target = target;
@@ -28,8 +28,8 @@ export class Projectile extends SquareAABBCollidable {
     {
         if(this.target)
         {
-            const dist = distance(this, this.target);
-            if(dist < Math.min(this.target.width, this.target.height) / 4)
+            const dist = distance(this, this.target.target);
+            if(dist < Math.min(this.target.target.width, this.target.target.height) / 2)
             {
                 return true;
             }
@@ -39,7 +39,7 @@ export class Projectile extends SquareAABBCollidable {
     update_state(delta_time: number): void {
         if(this.target)
         {
-            this.set_direction_vector_to_face(this.target);
+            this.set_direction_vector_to_face(this.target.target);
         }
         super.update_state(delta_time);
     }
@@ -528,6 +528,25 @@ export class PathPiece extends SquareAABBCollidable {
             this.path!.map.clear_piece_on_cell(this.x, this.y);
     }
 };
+export class HorizontalPathPiece extends PathPiece {
+
+    left_free():boolean
+    {
+        return super.left_free();
+    }
+    right_free():boolean
+    {
+        return super.right_free();
+    }
+    top_free():boolean
+    {
+        return false;
+    }
+    bottom_free():boolean
+    {
+        return false;
+    }
+};
 export class VerticalPathPiece extends PathPiece {
     left_free():boolean
     {
@@ -700,10 +719,12 @@ export class TRightPiece extends PathPiece {
 };
 export class Target extends SquareAABBCollidable {
     value:number;
-    constructor(x:number, y:number, dim:number, value:number)
+    target:SquareAABBCollidable;
+    constructor(x:number, y:number, dim:number, value:number, target:SquareAABBCollidable)
     {
         super(x, y, dim, dim);
         this.value = value;
+        this.target = target;
     }
 }
 export class Path {
@@ -1230,55 +1251,75 @@ export class Map {
             let highest_shield_magic = 0;
             let highest_shield_poison = 0;
             let highest_shield_physical = 0;
+            let enemy_highest_hp:Enemy;
+            let enemy_highest_shield_fire:Enemy;
+            let enemy_highest_shield_magic:Enemy;
+            let enemy_highest_shield_poison:Enemy;
+            let enemy_highest_shield_physical:Enemy;
             //calc max properties for this cell of enemies present
             enemies.forEach(enemy => {
                 if(enemy.hp > highest_hp)
+                {
                     highest_hp = enemy.hp;
+                    enemy_highest_hp = enemy;
+                }
                 if(enemy.shield_fire > highest_shield_fire)
+                {
                     highest_shield_fire = enemy.shield_fire;
+                    enemy_highest_shield_fire = enemy;
+                }
                 if(enemy.shield_magic > highest_shield_magic)
+                {
                     highest_shield_magic = enemy.shield_magic;
+                    enemy_highest_shield_magic = enemy;
+                }
                 if(enemy.shield_physical > highest_shield_physical)
+                {
                     highest_shield_physical = enemy.shield_physical;
+                    enemy_highest_shield_physical = enemy;
+                }
                 if(enemy.shield_poison > highest_shield_poison)
+                {
                     highest_shield_poison = enemy.shield_poison;
+                    enemy_highest_shield_poison = enemy;
+                }
             });
             if(enemies.length > 0)
             tower_ranges.forEach(tower_range => {
                 const tower = tower_range.range_for;
                 if(tower.closest === null)
                 {
-                    tower.closest = new Target(piece.x, piece.y, piece.width, 0);
+                    tower.closest = new Target(piece.x, piece.y, piece.width, 0, enemy_highest_hp);
                 }
                 if(!tower.highest_hp || tower.highest_hp.value < highest_hp)
                 {
                     if(!tower.highest_hp)
-                        tower.highest_hp = new Target(piece.x, piece.y, piece.width, 0);
+                        tower.highest_hp = new Target(piece.x, piece.y, piece.width, 0, enemy_highest_hp);
                     tower.highest_hp.value = highest_hp;
                 }
                 if(!tower.highest_shield_fire || tower.highest_shield_fire.value < highest_shield_fire)
                 {
                     if(!tower.highest_shield_fire)
-                        tower.highest_shield_fire = new Target(piece.x, piece.y, piece.width, 0);
+                        tower.highest_shield_fire = new Target(piece.x, piece.y, piece.width, 0, enemy_highest_shield_fire);
                     tower.highest_shield_fire.value = highest_shield_fire;
                 }
                 if(!tower.highest_shield_magic || tower.highest_shield_magic.value < highest_shield_magic)
                 {
                     if(!tower.highest_shield_magic)
-                        tower.highest_shield_magic = new Target(piece.x, piece.y, piece.width, 0);
+                        tower.highest_shield_magic = new Target(piece.x, piece.y, piece.width, 0, enemy_highest_shield_magic);
                     tower.highest_shield_magic.value = highest_shield_magic;
                 }
 
                 if(!tower.highest_shield_poison || tower.highest_shield_poison.value < highest_shield_poison)
                 {
                     if(!tower.highest_shield_poison)
-                        tower.highest_shield_poison = new Target(piece.x, piece.y, piece.width, 0);
+                        tower.highest_shield_poison = new Target(piece.x, piece.y, piece.width, 0, enemy_highest_shield_poison);
                     tower.highest_shield_poison.value = highest_shield_poison;
                 }
                 if(!tower.highest_shield_physical || tower.highest_shield_physical.value < highest_shield_physical)
                 {
                     if(!tower.highest_shield_physical)
-                        tower.highest_shield_physical = new Target(piece.x, piece.y, piece.width, 0);
+                        tower.highest_shield_physical = new Target(piece.x, piece.y, piece.width, 0, enemy_highest_shield_physical);
                     tower.highest_shield_physical.value = highest_shield_physical;
                 }
             })

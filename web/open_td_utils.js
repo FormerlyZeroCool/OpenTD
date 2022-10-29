@@ -14,8 +14,8 @@ export class Projectile extends SquareAABBCollidable {
     }
     is_at_target() {
         if (this.target) {
-            const dist = distance(this, this.target);
-            if (dist < Math.min(this.target.width, this.target.height) / 4) {
+            const dist = distance(this, this.target.target);
+            if (dist < Math.min(this.target.target.width, this.target.target.height) / 2) {
                 return true;
             }
         }
@@ -23,7 +23,7 @@ export class Projectile extends SquareAABBCollidable {
     }
     update_state(delta_time) {
         if (this.target) {
-            this.set_direction_vector_to_face(this.target);
+            this.set_direction_vector_to_face(this.target.target);
         }
         super.update_state(delta_time);
     }
@@ -399,6 +399,21 @@ export class PathPiece extends SquareAABBCollidable {
     }
 }
 ;
+export class HorizontalPathPiece extends PathPiece {
+    left_free() {
+        return super.left_free();
+    }
+    right_free() {
+        return super.right_free();
+    }
+    top_free() {
+        return false;
+    }
+    bottom_free() {
+        return false;
+    }
+}
+;
 export class VerticalPathPiece extends PathPiece {
     left_free() {
         return false && super.left_free();
@@ -535,9 +550,10 @@ export class TRightPiece extends PathPiece {
 }
 ;
 export class Target extends SquareAABBCollidable {
-    constructor(x, y, dim, value) {
+    constructor(x, y, dim, value, target) {
         super(x, y, dim, dim);
         this.value = value;
+        this.target = target;
     }
 }
 export class Path {
@@ -951,48 +967,63 @@ export class Map {
             let highest_shield_magic = 0;
             let highest_shield_poison = 0;
             let highest_shield_physical = 0;
+            let enemy_highest_hp;
+            let enemy_highest_shield_fire;
+            let enemy_highest_shield_magic;
+            let enemy_highest_shield_poison;
+            let enemy_highest_shield_physical;
             //calc max properties for this cell of enemies present
             enemies.forEach(enemy => {
-                if (enemy.hp > highest_hp)
+                if (enemy.hp > highest_hp) {
                     highest_hp = enemy.hp;
-                if (enemy.shield_fire > highest_shield_fire)
+                    enemy_highest_hp = enemy;
+                }
+                if (enemy.shield_fire > highest_shield_fire) {
                     highest_shield_fire = enemy.shield_fire;
-                if (enemy.shield_magic > highest_shield_magic)
+                    enemy_highest_shield_fire = enemy;
+                }
+                if (enemy.shield_magic > highest_shield_magic) {
                     highest_shield_magic = enemy.shield_magic;
-                if (enemy.shield_physical > highest_shield_physical)
+                    enemy_highest_shield_magic = enemy;
+                }
+                if (enemy.shield_physical > highest_shield_physical) {
                     highest_shield_physical = enemy.shield_physical;
-                if (enemy.shield_poison > highest_shield_poison)
+                    enemy_highest_shield_physical = enemy;
+                }
+                if (enemy.shield_poison > highest_shield_poison) {
                     highest_shield_poison = enemy.shield_poison;
+                    enemy_highest_shield_poison = enemy;
+                }
             });
             if (enemies.length > 0)
                 tower_ranges.forEach(tower_range => {
                     const tower = tower_range.range_for;
                     if (tower.closest === null) {
-                        tower.closest = new Target(piece.x, piece.y, piece.width, 0);
+                        tower.closest = new Target(piece.x, piece.y, piece.width, 0, enemy_highest_hp);
                     }
                     if (!tower.highest_hp || tower.highest_hp.value < highest_hp) {
                         if (!tower.highest_hp)
-                            tower.highest_hp = new Target(piece.x, piece.y, piece.width, 0);
+                            tower.highest_hp = new Target(piece.x, piece.y, piece.width, 0, enemy_highest_hp);
                         tower.highest_hp.value = highest_hp;
                     }
                     if (!tower.highest_shield_fire || tower.highest_shield_fire.value < highest_shield_fire) {
                         if (!tower.highest_shield_fire)
-                            tower.highest_shield_fire = new Target(piece.x, piece.y, piece.width, 0);
+                            tower.highest_shield_fire = new Target(piece.x, piece.y, piece.width, 0, enemy_highest_shield_fire);
                         tower.highest_shield_fire.value = highest_shield_fire;
                     }
                     if (!tower.highest_shield_magic || tower.highest_shield_magic.value < highest_shield_magic) {
                         if (!tower.highest_shield_magic)
-                            tower.highest_shield_magic = new Target(piece.x, piece.y, piece.width, 0);
+                            tower.highest_shield_magic = new Target(piece.x, piece.y, piece.width, 0, enemy_highest_shield_magic);
                         tower.highest_shield_magic.value = highest_shield_magic;
                     }
                     if (!tower.highest_shield_poison || tower.highest_shield_poison.value < highest_shield_poison) {
                         if (!tower.highest_shield_poison)
-                            tower.highest_shield_poison = new Target(piece.x, piece.y, piece.width, 0);
+                            tower.highest_shield_poison = new Target(piece.x, piece.y, piece.width, 0, enemy_highest_shield_poison);
                         tower.highest_shield_poison.value = highest_shield_poison;
                     }
                     if (!tower.highest_shield_physical || tower.highest_shield_physical.value < highest_shield_physical) {
                         if (!tower.highest_shield_physical)
-                            tower.highest_shield_physical = new Target(piece.x, piece.y, piece.width, 0);
+                            tower.highest_shield_physical = new Target(piece.x, piece.y, piece.width, 0, enemy_highest_shield_physical);
                         tower.highest_shield_physical.value = highest_shield_physical;
                     }
                 });
