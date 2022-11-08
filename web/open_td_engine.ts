@@ -123,7 +123,6 @@ export class Tower extends SquareAABBCollidable {
             {
                 projectile.target = this.closest;
                 this.game.map.add_projectile(projectile);
-                console.log("projectile launched at closest!", this.closest)
             }
             break;
             case(Tower.target_highest_hp):
@@ -131,7 +130,7 @@ export class Tower extends SquareAABBCollidable {
             {
                 projectile.target = this.highest_hp;
                 this.game.map.add_projectile(projectile);
-                console.log("projectile targeting highest hp launched!\nHP:", (this.highest_hp.target))
+                //console.log("projectile targeting highest hp launched!\nHP:", (this.highest_hp.target.hp))
             }
             break;
             case(Tower.target_highest_shield_fire):
@@ -139,7 +138,7 @@ export class Tower extends SquareAABBCollidable {
             {
                 projectile.target = this.highest_shield_fire;
                 this.game.map.add_projectile(projectile);
-                console.log("projectile launched at highest fire shield!")
+                //console.log("projectile launched at highest fire shield!")
             }
             break;
             case(Tower.target_highest_shield_magic):
@@ -147,7 +146,7 @@ export class Tower extends SquareAABBCollidable {
             {
                 projectile.target = this.highest_shield_magic;
                 this.game.map.add_projectile(projectile);
-                console.log("projectile launched highest magic sheild!")
+                //console.log("projectile launched highest magic sheild!")
             }
             break;
             case(Tower.target_highest_shield_physical):
@@ -155,7 +154,7 @@ export class Tower extends SquareAABBCollidable {
             {
                 projectile.target = this.highest_shield_physical;
                 this.game.map.add_projectile(projectile);
-                console.log("projectile launched at highest physical sheild!")
+                //console.log("projectile launched at highest physical sheild!")
             }
             break;
             case(Tower.target_highest_shield_poison):
@@ -163,7 +162,7 @@ export class Tower extends SquareAABBCollidable {
             {
                 projectile.target = this.highest_shield_poison;
                 this.game.map.add_projectile(projectile);
-                console.log("projectile launched at highest poison sheild!")
+                //console.log("projectile launched at highest poison sheild!")
             }
             break;
         }
@@ -897,7 +896,7 @@ export class Enemy extends SquareAABBCollidable {
     }
     die():void
     {
-        console.log("Generic enemy killed!");
+        console.log(`${(this.constructor.name)} enemy killed!`);
     }
     take_damage(proj:Projectile):boolean
     {

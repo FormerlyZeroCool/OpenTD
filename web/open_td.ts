@@ -19,9 +19,9 @@ class BasicEnemy extends Enemy {
 };
 //example of how to create a new Projectile class, override draw method to draw your own graphics
 class Arrow extends Projectile {
-    constructor(game:Game, target:Target, origin:SquareAABBCollidable, x:number, y:number, width:number, height:number)
+    constructor(map:Map, target:Target, origin:SquareAABBCollidable, x:number, y:number, width:number, height:number)
     {
-        super(game, target, origin, x, y, width, height);
+        super(map, target, origin, x, y, width, height);
         this.base_damage = 100; 
         this.bleed_damage = 150;
         this.poison_damage = 0;
@@ -31,7 +31,6 @@ class Arrow extends Projectile {
     }
     damage_enemy(enemy:Enemy):void
     {
-        console.log("enemy hit!", enemy.hp);
         enemy.add_bleed(this.bleed_damage);
         enemy.lose_hp(this.base_damage);
     }
