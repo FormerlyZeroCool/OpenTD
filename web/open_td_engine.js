@@ -2,8 +2,9 @@ import { RegularPolygon, RGB } from './gui.js';
 import { random, max_32_bit_signed, Queue, DynamicInt32Array } from './utils.js';
 import { distance, SpatiallyMappableCircle, SpatialHashMap2D, SquareAABBCollidable } from './game_utils.js';
 export class Projectile extends SquareAABBCollidable {
-    constructor(target, origin, x, y, width, height) {
+    constructor(map, target, origin, x, y, width, height) {
         super(x, y, width, height);
+        this.map = map;
         this.target = target;
         this.origin = origin;
         this.target = null;
@@ -17,11 +18,14 @@ export class Projectile extends SquareAABBCollidable {
         if (this.target && this.target.target) {
             const dist = distance(this, this.target.target);
             if (dist < Math.min(this.target.target.width, this.target.target.height) / 2) {
+                for (let i = 0; i < this.map.stats_modifiers.length; i++)
+                    this.map.stats_modifiers[i](this);
                 return true;
             }
         }
-        else
+        else {
             this.target = null;
+        }
         return false;
     }
     update_state(delta_time) {
@@ -118,7 +122,7 @@ export class Tower extends SquareAABBCollidable {
     update_state(delta_time) {
         const current_time = Date.now();
         if (current_time - this.last_fired > this.fire_rate * 1000) {
-            this.fire_projectile(new this.projectile_type(null, this, this.x, this.y, this.width / 4, this.height / 4));
+            this.fire_projectile(new this.projectile_type(this.game.map, null, this, this.x, this.y, this.width / 4, this.height / 4));
             this.last_fired = current_time;
         }
     }
@@ -787,6 +791,7 @@ export class Enemy extends SquareAABBCollidable {
 export class Map {
     constructor(x, y, game) {
         this.game = game;
+        this.stats_modifiers = [proj => proj.base_damage += 1000];
         this.projectiles = [];
         this.enemies = [];
         this.towers = [];

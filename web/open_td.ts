@@ -19,9 +19,9 @@ class BasicEnemy extends Enemy {
 };
 //example of how to create a new Projectile class, override draw method to draw your own graphics
 class Arrow extends Projectile {
-    constructor(target:Target, origin:SquareAABBCollidable, x:number, y:number, width:number, height:number)
+    constructor(game:Game, target:Target, origin:SquareAABBCollidable, x:number, y:number, width:number, height:number)
     {
-        super(target, origin, x, y, width, height);
+        super(game, target, origin, x, y, width, height);
         this.base_damage = 100; 
         this.bleed_damage = 150;
         this.poison_damage = 0;

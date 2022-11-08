@@ -12,10 +12,12 @@ export class Projectile extends SquareAABBCollidable {
     burn_damage:number;
     base_damage:number;
     enemies_hit:Enemy[];
+    map:Map;
 
-    constructor(target:Target | null, origin:SquareAABBCollidable, x:number, y:number, width:number, height:number)
+    constructor(map:Map, target:Target | null, origin:SquareAABBCollidable, x:number, y:number, width:number, height:number)
     {
         super(x, y, width, height);
+        this.map = map;
         this.target = target;
         this.origin = origin;
         this.target = null;
@@ -32,11 +34,15 @@ export class Projectile extends SquareAABBCollidable {
             const dist = distance(this, this.target.target);
             if(dist < Math.min(this.target.target.width, this.target.target.height) / 2)
             {
+                for(let i = 0; i < this.map.stats_modifiers.length; i++)
+                    this.map.stats_modifiers[i](this);
                 return true;
             }
         }
         else
+        {
             this.target = null;
+        }
         return false;
     }
     update_state(delta_time: number): void {
@@ -167,7 +173,8 @@ export class Tower extends SquareAABBCollidable {
         const current_time = Date.now();
         if(current_time - this.last_fired > this.fire_rate * 1000)
         {
-            this.fire_projectile(new this.projectile_type(null, this, this.x, this.y, this.width / 4, this.height / 4));
+            
+            this.fire_projectile(new this.projectile_type(this.game.map, null, this, this.x, this.y, this.width / 4, this.height / 4));
             this.last_fired = current_time;
         }
     }
@@ -1033,10 +1040,12 @@ export class Map {
     piece_type_instances:PathPiece[];
     projectiles:Projectile[];
     spatial_map:SpatialHashMap2D<Range<Tower>, Projectile, Enemy>;
+    stats_modifiers:((projectile:Projectile) => void)[];
     
     constructor(x:number, y:number, game:Game)
     {
         this.game = game;
+        this.stats_modifiers = [proj => proj.base_damage += 1000];
         this.projectiles = [];
         this.enemies = [];
         this.towers = [];
