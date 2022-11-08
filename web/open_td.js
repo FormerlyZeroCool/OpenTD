@@ -8,7 +8,7 @@ import { StateManagedUI, DefaultGameState } from './open_td_gui.js';
 class BasicEnemy extends Enemy {
     constructor(x, y, width, height, current_target) {
         super(x, y, width, height, current_target);
-        this.hp = (++BasicEnemy.last_hp) * 10;
+        this.hp = (++BasicEnemy.last_hp) * 1000;
         //this.shield_physical += random() * 3000;
     }
 }

@@ -13,7 +13,7 @@ class BasicEnemy extends Enemy {
     constructor(x:number, y:number, width:number, height:number, current_target:PathPiece)
     {
         super(x, y, width, height, current_target);
-        this.hp = (++BasicEnemy.last_hp) * 10;
+        this.hp = (++BasicEnemy.last_hp) * 1000;
         //this.shield_physical += random() * 3000;
     }
 };

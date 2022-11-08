@@ -65,12 +65,7 @@ export class PlacePathState extends StateManagedUIElement {
         }
     }
     transition(delta_time) {
-        if (!(this.game.keyboardHandler.keysHeld["ControlLeft"] || this.game.keyboardHandler.keysHeld["ControlRight"] ||
-            this.game.keyboardHandler.keysHeld["MetaLeft"] || this.game.keyboardHandler.keysHeld["MetaRight"])) {
-            this.possible_change = true;
-        }
-        if (this.possible_change && (this.game.keyboardHandler.keysHeld["ControlLeft"] || this.game.keyboardHandler.keysHeld["ControlRight"] ||
-            this.game.keyboardHandler.keysHeld["MetaLeft"] || this.game.keyboardHandler.keysHeld["MetaRight"]))
+        if (this.game.keyboardHandler.keysHeld["KeyD"])
             return new DefaultGameState(this.game);
         return this;
     }
@@ -88,12 +83,7 @@ export class DefaultGameState extends StateManagedUIElement {
         console.log(this.game.try_place_ballista(event.touchPos[0], event.touchPos[1]));
     }
     transition(delta_time) {
-        if (!(this.game.keyboardHandler.keysHeld["ControlLeft"] || this.game.keyboardHandler.keysHeld["ControlRight"] ||
-            this.game.keyboardHandler.keysHeld["MetaLeft"] || this.game.keyboardHandler.keysHeld["MetaRight"])) {
-            this.possible_change_to_place_pieces = true;
-        }
-        else if (this.possible_change_to_place_pieces && (this.game.keyboardHandler.keysHeld["ControlLeft"] || this.game.keyboardHandler.keysHeld["ControlRight"] ||
-            this.game.keyboardHandler.keysHeld["MetaLeft"] || this.game.keyboardHandler.keysHeld["MetaRight"])) {
+        if (this.game.keyboardHandler.keysHeld["KeyP"]) {
             return new PlacePathState(this.game);
         }
         else if (this.game.selected_tower) {
