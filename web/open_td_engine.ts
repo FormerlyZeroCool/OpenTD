@@ -11,7 +11,7 @@ export class Projectile extends SquareAABBCollidable {
     poison_damage:number;
     burn_damage:number;
     base_damage:number;
-
+    enemies_hit:Enemy[];
 
     constructor(target:Target | null, origin:SquareAABBCollidable, x:number, y:number, width:number, height:number)
     {
@@ -23,10 +23,11 @@ export class Projectile extends SquareAABBCollidable {
         this.bleed_damage = 0;
         this.poison_damage = 0;
         this.burn_damage = 0;
+        this.enemies_hit = [];
     }
     is_at_target(): boolean 
     {
-        if(this.target)
+        if(this.target && this.target.target)
         {
             const dist = distance(this, this.target.target);
             if(dist < Math.min(this.target.target.width, this.target.target.height) / 2)
@@ -34,10 +35,12 @@ export class Projectile extends SquareAABBCollidable {
                 return true;
             }
         }
+        else
+            this.target = null;
         return false;
     }
     update_state(delta_time: number): void {
-        if(this.target)
+        if(this.target && this.target.target)
         {
             this.set_direction_vector_to_face(this.target.target);
         }
@@ -45,7 +48,7 @@ export class Projectile extends SquareAABBCollidable {
     }
     damage_enemy(enemy:Enemy):void
     {
-
+        throw new Error("unimplemented virtual method")
     }
 };
 export class Range <T> extends SpatiallyMappableCircle
@@ -122,7 +125,7 @@ export class Tower extends SquareAABBCollidable {
             {
                 projectile.target = this.highest_hp;
                 this.game.map.add_projectile(projectile);
-                console.log("projectile launched!")
+                console.log("projectile targeting highest hp launched!\nHP:", (this.highest_hp.target))
             }
             break;
             case(Tower.target_highest_shield_fire):
@@ -130,7 +133,7 @@ export class Tower extends SquareAABBCollidable {
             {
                 projectile.target = this.highest_shield_fire;
                 this.game.map.add_projectile(projectile);
-                console.log("projectile launched!")
+                console.log("projectile launched at highest fire shield!")
             }
             break;
             case(Tower.target_highest_shield_magic):
@@ -138,7 +141,7 @@ export class Tower extends SquareAABBCollidable {
             {
                 projectile.target = this.highest_shield_magic;
                 this.game.map.add_projectile(projectile);
-                console.log("projectile launched!")
+                console.log("projectile launched highest magic sheild!")
             }
             break;
             case(Tower.target_highest_shield_physical):
@@ -146,7 +149,7 @@ export class Tower extends SquareAABBCollidable {
             {
                 projectile.target = this.highest_shield_physical;
                 this.game.map.add_projectile(projectile);
-                console.log("projectile launched!")
+                console.log("projectile launched at highest physical sheild!")
             }
             break;
             case(Tower.target_highest_shield_poison):
@@ -154,7 +157,7 @@ export class Tower extends SquareAABBCollidable {
             {
                 projectile.target = this.highest_shield_poison;
                 this.game.map.add_projectile(projectile);
-                console.log("projectile launched!")
+                console.log("projectile launched at highest poison sheild!")
             }
             break;
         }
@@ -743,8 +746,8 @@ export class Path {
         this.undo_stack = [];
         x -= x % this.cell_width;
         y -= y % this.cell_height;
-        this.root = new PathPiece(x, y, this.cell_width, this.cell_height, this);
-        this.root.children.left_child = new PathPiece(x + this.cell_width, y, this.cell_width, this.cell_height, this, this.root);
+        this.root = new HorizontalPathPiece(x, y, this.cell_width, this.cell_height, this);
+        this.root.children.left_child = new HorizontalPathPiece(x + this.cell_width, y, this.cell_width, this.cell_height, this, this.root);
         this.leaves = [this.root.children.left_child];
     }
     undo_add():PathPiece | null
@@ -869,7 +872,7 @@ export class Enemy extends SquareAABBCollidable {
     {
         super(x, y, width, height);
         this.game = current_target.path?.map.game!;
-        this.direction = [30,0];
+        this.direction = [50,0];
         this.current_target = current_target;
         this.attack = 1;
         this.defense_magic = 0.05;
@@ -884,6 +887,10 @@ export class Enemy extends SquareAABBCollidable {
         this.buildup_bleed = 0;
         this.buildup_burn = 0;
         this.buildup_poison = 0;
+    }
+    die():void
+    {
+        console.log("Generic enemy killed!");
     }
     take_damage(proj:Projectile):boolean
     {
@@ -1218,18 +1225,32 @@ export class Map {
         this.projectiles = this.projectiles.filter(projectile => !projectile.is_at_target());
         this.spatial_map = new SpatialHashMap2D<Range<Tower>, Projectile, Enemy>(
             [], to_be_detonated, this.enemies, this.game.max_x, this.game.max_y, this.game.spatial_map_dim, this.game.spatial_map_dim);
+        
+            const dead_enemies:Enemy[] = [];
+        const set:Set<{projectile:Projectile, enemy:Enemy}> = new Set();
         this.spatial_map.handle_by_cell(() => {}, () => {}, () => {}, 
             (projectile:Projectile, enemy:Enemy) => {
                 //TODO use spatial map to detonate the to be detonated projectiles 
                 //here
-                enemy.take_damage(projectile);
-
+                if(!projectile.enemies_hit.includes(enemy))
+                {
+                    enemy.take_damage(projectile);
+                    projectile.enemies_hit.push(enemy);
+                    if(enemy.hp < 0)
+                    {
+                        dead_enemies.push(enemy);
+                        this.enemies[this.enemies.indexOf(enemy)] = this.enemies[this.enemies.length - 1];
+                        this.enemies.pop();
+                    }
+                }
+                
             });
         //we don't want to actually perform collision on towers so we leave it empty for handle
         //by cell, but we do want their ranges spatially mapped so we can check when one is
         //in range of a place
         this.towers.forEach(tower => {this.spatial_map.push_collidable(tower.range); tower.clear_targets();});
-        this.enemies = this.enemies.filter(enemy => enemy.hp > 0);
+
+        dead_enemies.forEach(enemy => enemy.die());
         const queue = new Queue<PathPiece>();
         const checked = new DynamicInt32Array(this.horizontal_cells() * this.vertical_cells());
         checked.fill(0);
@@ -1241,16 +1262,21 @@ export class Map {
             //this is nearest
             //then we need to find the piece with the max enemies attributes like shield and health
             
+            //add 0.1 to correct for floating point error since it should divide to a whole number
+            //since piece.x and piece.y are multiples of this.cell_dim
+            //if there were no error even adding 0.9 shouldn't change results
+            //but because there is i am concerned it may end up at 0.999... or something
+            //like that, and adding the 0.1 should correct this 
             const map_x = Math.floor(piece.x / this.cell_dim + 0.1);
             const map_y = Math.floor(piece.y / this.cell_dim + 0.1);
             const objects_cell = this.spatial_map.get_cell(map_x, map_y);
             const tower_ranges:Range<Tower>[] = objects_cell.collidable_objects;
             const enemies:Enemy[] = objects_cell.collidable_not_with_self2;
-            let highest_hp = 0;
-            let highest_shield_fire = 0;
-            let highest_shield_magic = 0;
-            let highest_shield_poison = 0;
-            let highest_shield_physical = 0;
+            let highest_hp = -max_32_bit_signed;
+            let highest_shield_fire = -max_32_bit_signed;
+            let highest_shield_magic = -max_32_bit_signed;
+            let highest_shield_poison = -max_32_bit_signed;
+            let highest_shield_physical = -max_32_bit_signed;
             let enemy_highest_hp:Enemy;
             let enemy_highest_shield_fire:Enemy;
             let enemy_highest_shield_magic:Enemy;
@@ -1287,47 +1313,62 @@ export class Map {
             if(enemies.length > 0)
             tower_ranges.forEach(tower_range => {
                 const tower = tower_range.range_for;
-                if(tower.closest === null)
+                if(enemy_highest_hp)
                 {
-                    tower.closest = new Target(piece.x, piece.y, piece.width, 0, enemy_highest_hp);
-                }
-                if(!tower.highest_hp || tower.highest_hp.value < highest_hp)
-                {
-                    if(!tower.highest_hp)
+                    if(tower.closest === null && enemy_highest_hp !== null) {
+                        tower.closest = new Target(piece.x, piece.y, piece.width, 0, enemy_highest_hp);
+                    }
+                    if(!tower.highest_hp) {
                         tower.highest_hp = new Target(piece.x, piece.y, piece.width, 0, enemy_highest_hp);
-                    tower.highest_hp.value = highest_hp;
+                    }
+                    if(tower.highest_hp.value < highest_hp)
+                    {
+                        tower.highest_hp.value = highest_hp;
+                        tower.highest_hp.target = enemy_highest_hp;
+                    }
                 }
-                if(!tower.highest_shield_fire || tower.highest_shield_fire.value < highest_shield_fire)
+                if(enemy_highest_shield_fire)
                 {
                     if(!tower.highest_shield_fire)
                         tower.highest_shield_fire = new Target(piece.x, piece.y, piece.width, 0, enemy_highest_shield_fire);
-                    tower.highest_shield_fire.value = highest_shield_fire;
+                    if(tower.highest_shield_fire.value < highest_shield_fire)
+                    {
+                        tower.highest_shield_fire.value = highest_shield_fire;
+                        tower.highest_shield_fire.target = enemy_highest_shield_fire;
+                    }
                 }
-                if(!tower.highest_shield_magic || tower.highest_shield_magic.value < highest_shield_magic)
+                if(enemy_highest_shield_magic)
                 {
                     if(!tower.highest_shield_magic)
                         tower.highest_shield_magic = new Target(piece.x, piece.y, piece.width, 0, enemy_highest_shield_magic);
-                    tower.highest_shield_magic.value = highest_shield_magic;
+                    if(tower.highest_shield_magic.value < highest_shield_magic)
+                    {
+                        tower.highest_shield_magic.value = highest_shield_magic;
+                        tower.highest_shield_magic.target = enemy_highest_shield_magic;
+                    } 
                 }
-
-                if(!tower.highest_shield_poison || tower.highest_shield_poison.value < highest_shield_poison)
+                if(highest_shield_poison)
                 {
                     if(!tower.highest_shield_poison)
                         tower.highest_shield_poison = new Target(piece.x, piece.y, piece.width, 0, enemy_highest_shield_poison);
-                    tower.highest_shield_poison.value = highest_shield_poison;
+    
+                    if(tower.highest_shield_poison.value < highest_shield_poison)
+                    {
+                        tower.highest_shield_poison.value = highest_shield_poison;
+                        tower.highest_shield_poison.target = enemy_highest_shield_poison;
+                    }
                 }
-                if(!tower.highest_shield_physical || tower.highest_shield_physical.value < highest_shield_physical)
+                if(highest_shield_physical)
                 {
                     if(!tower.highest_shield_physical)
                         tower.highest_shield_physical = new Target(piece.x, piece.y, piece.width, 0, enemy_highest_shield_physical);
-                    tower.highest_shield_physical.value = highest_shield_physical;
+                    if(tower.highest_shield_physical.value < highest_shield_physical)
+                    {
+                        tower.highest_shield_physical.value = highest_shield_physical;
+                        tower.highest_shield_physical.target = enemy_highest_shield_physical;
+                    }
                 }
-            })
-            //add 0.1 to correct for floating point error since it should divide to a whole number
-            //since piece.x and piece.y are multiples of this.cell_dim
-            //if there were no error even adding 0.9 shouldn't change results
-            //but because there is i am concerned it may end up at 0.999... or something
-            //like that, and adding the 0.1 should correct this 
+            });
             if(!checked[map_x + map_y * this.horizontal_cells()])
             {
                 checked[map_x + map_y * this.horizontal_cells()] |= 1;

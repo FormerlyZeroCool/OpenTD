@@ -2,6 +2,10 @@
 export interface FilesHaver{
     files:FileList;
 };
+export function throw_error_unimplemented_virtual_method():void
+{
+    throw new Error("Error unimplemented virtual method");
+}
 export function normalize(vec:number[]):number[]
 {
     const mag = Math.sqrt(vec[0]*vec[0] + vec[1]+vec[1]);

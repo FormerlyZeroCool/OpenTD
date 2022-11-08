@@ -1,4 +1,7 @@
 ;
+export function throw_error_unimplemented_virtual_method() {
+    throw new Error("Error unimplemented virtual method");
+}
 export function normalize(vec) {
     const mag = Math.sqrt(vec[0] * vec[0] + vec[1] + vec[1]);
     return [vec[0] / mag, vec[1] / mag];
