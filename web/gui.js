@@ -2174,11 +2174,17 @@ let height = Math.min(
 //document.documentElement.scrollHeight,
 //document.body.offsetHeight,
 //document.documentElement.offsetHeight//,
-document.body.clientHeight);
+document.documentElement.innerHeight);
 window.addEventListener("resize", () => {
-    width = Math.min(document.body.scrollWidth, document.documentElement.scrollWidth, document.body.offsetWidth, document.documentElement.offsetWidth, document.body.clientWidth);
-    height = document.documentElement.clientHeight;
+    width = Math.min(document.body.scrollWidth, document.documentElement.scrollWidth, document.body.offsetWidth, document.documentElement.offsetWidth, document.documentElement.clientWidth);
+    height = document.documentElement.innerHeight;
 });
+export function getWidth() {
+    return width;
+}
+export function getHeight() {
+    return height;
+}
 export class RegularPolygon {
     constructor(radius, sides) {
         this.points = [];

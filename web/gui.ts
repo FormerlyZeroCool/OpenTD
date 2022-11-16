@@ -2727,7 +2727,7 @@ let height:number = Math.min(
     //document.documentElement.scrollHeight,
     //document.body.offsetHeight,
     //document.documentElement.offsetHeight//,
-    document.body.clientHeight
+    document.documentElement.innerHeight
   );
 window.addEventListener("resize", () => {
     width = Math.min(
@@ -2735,10 +2735,16 @@ window.addEventListener("resize", () => {
         document.documentElement.scrollWidth,
         document.body.offsetWidth,
         document.documentElement.offsetWidth,
-        document.body.clientWidth
+        document.documentElement.clientWidth
       );
-    height = document.documentElement.clientHeight;
+    height = document.documentElement.innerHeight;
 });
+export function getWidth():number {
+    return width;
+}
+export function getHeight():number {
+    return height;
+}
 export class RegularPolygon {
     points:number[];
     bounds:number[];
