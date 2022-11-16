@@ -1,8 +1,8 @@
 import { GuiButton, SimpleGridLayoutManager } from "./gui.js";
-import { throw_error_unimplemented_virtual_method } from './utils'
-import { SingleTouchListener, TouchMoveEvent } from './io'
-import { Game } from './open_td'
-import { UIState, StateManagedUI, StateManagedUIElement } from './gui'
+import { throw_error_unimplemented_virtual_method } from './utils.js'
+import { SingleTouchListener, TouchMoveEvent } from './io.js'
+import { Game } from './open_td.js'
+import { UIState, StateManagedUI, StateManagedUIElement } from './gui.js'
 
 //always show
 const hud = new SimpleGridLayoutManager([0, 0], [0, 0], 0, 0);

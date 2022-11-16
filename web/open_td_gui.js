@@ -1,5 +1,5 @@
 import { SimpleGridLayoutManager } from "./gui.js";
-import { StateManagedUIElement } from './gui';
+import { StateManagedUIElement } from './gui.js';
 //always show
 const hud = new SimpleGridLayoutManager([0, 0], [0, 0], 0, 0);
 //ui group 0
