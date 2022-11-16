@@ -1,65 +1,9 @@
-import { SimpleGridLayoutManager } from "./gui.js";
+import { GuiButton, SimpleGridLayoutManager } from "./gui.js";
 import { throw_error_unimplemented_virtual_method } from './utils'
 import { SingleTouchListener, TouchMoveEvent } from './io'
 import { Game } from './open_td'
-//all persistent state should be stored in static variables
-//this includes ui elements because constructing new ui elements and destroying old ones is not free
-export interface UIState {
-    //render any ui elements to provided context
-    draw(ctx:CanvasRenderingContext2D, canvas:HTMLCanvasElement, x:number, y:number, width:number, height:number):void;
-    //pass keyboard events to any ui elements managed
-    handleKeyboardEvents(type:string, event:KeyboardEvent):void;
-    //pass touch events to any ui elements managed
-    handleTouchEvents(type:string, event:TouchMoveEvent):void;
-    //update state, and transition state, every tick new state will be assigned to current state
-    //to remain in previous state return this object
-    transition(delta_time:number):UIState;
-};
-export class StateManagedUI {
-    state:UIState;
-    constructor(state:UIState)
-    {
-        this.state = state;
-    }
-    draw(ctx:CanvasRenderingContext2D, canvas:HTMLCanvasElement, x:number, y:number, width:number, height:number):void
-    {
-        this.state.draw(ctx, canvas, x, y, width, height);
-    }
-    handleKeyboardEvents(type:string, event:KeyboardEvent):void
-    {
-        this.state.handleKeyboardEvents(type, event);
-    }
-    handleTouchEvents(type:string, event:TouchMoveEvent):void
-    {
-        this.state.handleTouchEvents(type, event);
-    }
-    transition(delta_time:number):void
-    {
-        this.state = this.state.transition(delta_time);
-    }
-};
+import { UIState, StateManagedUI, StateManagedUIElement } from './gui'
 
-export class StateManagedUIElement implements UIState {
-    layouts:SimpleGridLayoutManager[];
-    constructor()
-    {
-        this.layouts = [];
-    }
-    draw(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, x: number, y: number, width: number, height: number): void {
-        this.layouts.forEach(layout => layout.draw(ctx));
-    }
-    handleKeyboardEvents(type: string, event: KeyboardEvent): void {
-        this.layouts.forEach(layout => layout.handleKeyBoardEvents(type, event));
-    }
-    handleTouchEvents(type: string, event: TouchMoveEvent): void {
-        this.layouts.forEach(layout => layout.handleTouchEvents(type, event));
-    }
-    transition(delta_time: number): UIState {
-        throw new Error("Method not implemented.");
-    }
-    
-    
-}
 //always show
 const hud = new SimpleGridLayoutManager([0, 0], [0, 0], 0, 0);
 //ui group 0

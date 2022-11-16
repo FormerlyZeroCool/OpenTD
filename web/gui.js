@@ -1,5 +1,42 @@
 import { isTouchSupported, fetchImage } from './io.js';
 import { max_32_bit_signed } from './utils.js';
+;
+export class StateManagedUI {
+    constructor(state) {
+        this.state = state;
+    }
+    draw(ctx, canvas, x, y, width, height) {
+        this.state.draw(ctx, canvas, x, y, width, height);
+    }
+    handleKeyboardEvents(type, event) {
+        this.state.handleKeyboardEvents(type, event);
+    }
+    handleTouchEvents(type, event) {
+        this.state.handleTouchEvents(type, event);
+    }
+    transition(delta_time) {
+        this.state = this.state.transition(delta_time);
+    }
+}
+;
+export class StateManagedUIElement {
+    constructor() {
+        this.layouts = [];
+    }
+    draw(ctx, canvas, x, y, width, height) {
+        this.layouts.forEach(layout => layout.draw(ctx));
+    }
+    handleKeyboardEvents(type, event) {
+        this.layouts.forEach(layout => layout.handleKeyBoardEvents(type, event));
+    }
+    handleTouchEvents(type, event) {
+        this.layouts.forEach(layout => layout.handleTouchEvents(type, event));
+    }
+    transition(delta_time) {
+        throw new Error("Method not implemented.");
+    }
+}
+;
 export function blendAlphaCopy(color0, color) {
     const alphant = color0.alphaNormal();
     const alphanc = color.alphaNormal();
@@ -982,6 +1019,24 @@ export class GuiButton {
     }
 }
 ;
+;
+export class GuiButtonFileOpener extends GuiButton {
+    constructor(callback, text, width, height, fontSize = 12, pressedColor = new RGB(150, 150, 200, 255), unPressedColor = new RGB(255, 255, 255, 195), fontName = "Helvetica") {
+        super(() => {
+            const input = document.createElement('input');
+            input.type = "file";
+            input.addEventListener('change', (event) => {
+                const fileList = event.target.files;
+                const reader = new FileReader();
+                fileList[0].arrayBuffer().then((buffer) => {
+                    const binary = new Int32Array(buffer);
+                    callback(binary);
+                });
+            });
+            input.click();
+        }, text, width, height, fontSize, pressedColor, unPressedColor, fontName);
+    }
+}
 export class GuiCheckBox {
     constructor(callBack, width = 50, height = 50, checked = false, unPressedColor = new RGB(255, 255, 255, 0), pressedColor = new RGB(150, 150, 200, 255), fontSize = height - 10) {
         this.checked = checked;
@@ -2113,17 +2168,17 @@ export class SpriteAnimation {
     }
 }
 ;
-export function getWidth() {
-    return Math.min(document.body.scrollWidth, document.documentElement.scrollWidth, document.body.offsetWidth, document.documentElement.offsetWidth, document.documentElement.clientWidth);
-}
-export function getHeight() {
-    return Math.min(
-    //document.body.scrollHeight,
-    //document.documentElement.scrollHeight,
-    //document.body.offsetHeight,
-    //document.documentElement.offsetHeight//,
-    document.documentElement.clientHeight);
-}
+let width = Math.min(document.body.scrollWidth, document.documentElement.scrollWidth, document.body.offsetWidth, document.documentElement.offsetWidth, document.documentElement.clientWidth);
+let height = Math.min(
+//document.body.scrollHeight,
+//document.documentElement.scrollHeight,
+//document.body.offsetHeight,
+//document.documentElement.offsetHeight//,
+document.body.clientHeight);
+window.addEventListener("resize", () => {
+    width = Math.min(document.body.scrollWidth, document.documentElement.scrollWidth, document.body.offsetWidth, document.documentElement.offsetWidth, document.body.clientWidth);
+    height = document.documentElement.clientHeight;
+});
 export class RegularPolygon {
     constructor(radius, sides) {
         this.points = [];

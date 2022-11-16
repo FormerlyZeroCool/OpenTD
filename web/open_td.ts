@@ -1,11 +1,11 @@
 import {SingleTouchListener, TouchMoveEvent, MouseDownTracker, isTouchSupported, KeyboardHandler} from './io.js'
-import {RegularPolygon, getHeight, getWidth, RGB, Sprite, blendAlphaCopy} from './gui.js'
+import {RegularPolygon, getHeight, getWidth, RGB, Sprite, StateManagedUI} from './gui.js'
 import {random, srand, max_32_bit_signed, FixedSizeQueue, Queue, PriorityQueue, DynamicInt32Array} from './utils.js'
 import {SquareAABBCollidable, menu_font_size} from './game_utils.js'
 import {Projectile, Map, Enemy, Tower, PathPiece,
     VerticalPathPiece, LeftBottomPiece, RightBottomPiece, 
     LeftTopPiece, RightTopPiece, TBottomPiece, TTopPiece, TLeftPiece, TRightPiece, Target} from './open_td_engine.js'
-import { StateManagedUI, DefaultGameState, PlacePathState } from './open_td_gui.js'
+import { DefaultGameState, PlacePathState } from './open_td_gui.js'
 
 //example of how to create a new enemy class, override draw method to draw your own graphics
 class BasicEnemy extends Enemy {
