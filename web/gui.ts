@@ -2727,7 +2727,7 @@ let height:number = Math.min(
     //document.documentElement.scrollHeight,
     //document.body.offsetHeight,
     //document.documentElement.offsetHeight//,
-    document.documentElement.innerHeight
+    document.body.innerHeight
   );
 window.addEventListener("resize", () => {
     width = Math.min(
@@ -2737,7 +2737,7 @@ window.addEventListener("resize", () => {
         document.documentElement.offsetWidth,
         document.documentElement.clientWidth
       );
-    height = document.documentElement.innerHeight;
+    height = document.body.innerHeight;
 });
 export function getWidth():number {
     return width;

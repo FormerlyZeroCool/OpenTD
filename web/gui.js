@@ -2174,10 +2174,10 @@ let height = Math.min(
 //document.documentElement.scrollHeight,
 //document.body.offsetHeight,
 //document.documentElement.offsetHeight//,
-document.documentElement.innerHeight);
+document.body.innerHeight);
 window.addEventListener("resize", () => {
     width = Math.min(document.body.scrollWidth, document.documentElement.scrollWidth, document.body.offsetWidth, document.documentElement.offsetWidth, document.documentElement.clientWidth);
-    height = document.documentElement.innerHeight;
+    height = document.body.innerHeight;
 });
 export function getWidth() {
     return width;
